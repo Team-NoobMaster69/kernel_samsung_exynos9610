@@ -1059,6 +1059,12 @@ static void rsi_disconnect(struct sdio_func *pfunction)
 	rsi_mac80211_detach(adapter);
 	mdelay(10);
 
+	if (IS_ENABLED(CONFIG_RSI_COEX) && adapter->priv->coex_mode > 1 &&
+	    adapter->priv->bt_adapter) {
+		rsi_bt_ops.detach(adapter->priv->bt_adapter);
+		adapter->priv->bt_adapter = NULL;
+	}
+
 	/* Reset Chip */
 	rsi_reset_chip(adapter);
 
@@ -1082,8 +1088,106 @@ static int rsi_suspend(struct device *dev)
 
 static int rsi_resume(struct device *dev)
 {
-	/* Not yet implemented */
-	return -ENOSYS;
+	struct sdio_func *pfunction = dev_to_sdio_func(dev);
+	struct rsi_hw *adapter = sdio_get_drvdata(pfunction);
+	struct rsi_common *common = adapter->priv;
+
+	common->fsm_state = FSM_MAC_INIT_DONE;
+	rsi_sdio_enable_interrupts(pfunction);
+
+	return 0;
+}
+
+static int rsi_freeze(struct device *dev)
+{
+	int ret;
+	struct sdio_func *pfunction = dev_to_sdio_func(dev);
+	struct rsi_hw *adapter = sdio_get_drvdata(pfunction);
+	struct rsi_common *common;
+	struct rsi_91x_sdiodev *sdev;
+
+	rsi_dbg(INFO_ZONE, "SDIO Bus freeze ===>\n");
+
+	if (!adapter) {
+		rsi_dbg(ERR_ZONE, "Device is not ready\n");
+		return -ENODEV;
+	}
+	common = adapter->priv;
+	sdev = (struct rsi_91x_sdiodev *)adapter->rsi_dev;
+
+	if ((common->wow_flags & RSI_WOW_ENABLED) &&
+	    (common->wow_flags & RSI_WOW_NO_CONNECTION))
+		rsi_dbg(ERR_ZONE,
+			"##### Device can not wake up through WLAN\n");
+
+	if (IS_ENABLED(CONFIG_RSI_COEX) && common->coex_mode > 1 &&
+	    common->bt_adapter) {
+		rsi_bt_ops.detach(common->bt_adapter);
+		common->bt_adapter = NULL;
+	}
+
+	ret = rsi_sdio_disable_interrupts(pfunction);
+
+	if (sdev->write_fail)
+		rsi_dbg(INFO_ZONE, "###### Device is not ready #######\n");
+
+	ret = rsi_set_sdio_pm_caps(adapter);
+	if (ret)
+		rsi_dbg(INFO_ZONE, "Setting power management caps failed\n");
+
+	rsi_dbg(INFO_ZONE, "***** RSI module freezed *****\n");
+
+	return 0;
+}
+
+static int rsi_thaw(struct device *dev)
+{
+	struct sdio_func *pfunction = dev_to_sdio_func(dev);
+	struct rsi_hw *adapter = sdio_get_drvdata(pfunction);
+	struct rsi_common *common = adapter->priv;
+
+	rsi_dbg(ERR_ZONE, "SDIO Bus thaw =====>\n");
+
+	common->hibernate_resume = true;
+	common->fsm_state = FSM_CARD_NOT_READY;
+	common->iface_down = true;
+
+	rsi_sdio_enable_interrupts(pfunction);
+
+	rsi_dbg(INFO_ZONE, "***** RSI module thaw done *****\n");
+
+	return 0;
+}
+
+static void rsi_shutdown(struct device *dev)
+{
+	struct sdio_func *pfunction = dev_to_sdio_func(dev);
+	struct rsi_hw *adapter = sdio_get_drvdata(pfunction);
+	struct rsi_91x_sdiodev *sdev =
+		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
+	struct ieee80211_hw *hw = adapter->hw;
+	struct cfg80211_wowlan *wowlan = hw->wiphy->wowlan_config;
+
+	rsi_dbg(ERR_ZONE, "SDIO Bus shutdown =====>\n");
+
+	if (rsi_config_wowlan(adapter, wowlan))
+		rsi_dbg(ERR_ZONE, "Failed to configure WoWLAN\n");
+
+	if (IS_ENABLED(CONFIG_RSI_COEX) && adapter->priv->coex_mode > 1 &&
+	    adapter->priv->bt_adapter) {
+		rsi_bt_ops.detach(adapter->priv->bt_adapter);
+		adapter->priv->bt_adapter = NULL;
+	}
+
+	rsi_sdio_disable_interrupts(sdev->pfunction);
+
+	if (sdev->write_fail)
+		rsi_dbg(INFO_ZONE, "###### Device is not ready #######\n");
+
+	if (rsi_set_sdio_pm_caps(adapter))
+		rsi_dbg(INFO_ZONE, "Setting power management caps failed\n");
+
+	rsi_dbg(INFO_ZONE, "***** RSI module shut down *****\n");
 }
 
 static const struct dev_pm_ops rsi_pm_ops = {
