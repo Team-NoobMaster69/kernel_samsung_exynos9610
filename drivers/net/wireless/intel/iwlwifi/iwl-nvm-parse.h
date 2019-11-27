@@ -7,6 +7,10 @@
  *
  * Copyright(c) 2008 - 2015 Intel Corporation. All rights reserved.
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+<<<<<<< HEAD
+=======
+ * Copyright(c) 2018 - 2019 Intel Corporation
+>>>>>>> 2c00f819a721... iwlwifi: Don't ignore the cap field upon mcc update
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -33,6 +37,10 @@
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+<<<<<<< HEAD
+=======
+ * Copyright(c) 2018 - 2019 Intel Corporation
+>>>>>>> 2c00f819a721... iwlwifi: Don't ignore the cap field upon mcc update
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -107,7 +115,12 @@ void iwl_init_sbands(struct device *dev, const struct iwl_cfg *cfg,
  */
 struct ieee80211_regdomain *
 iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
+<<<<<<< HEAD
 		       int num_of_ch, __le32 *channels, u16 fw_mcc);
+=======
+		       int num_of_ch, __le32 *channels, u16 fw_mcc,
+		       u16 geo_info, u16 cap);
+>>>>>>> 2c00f819a721... iwlwifi: Don't ignore the cap field upon mcc update
 
 #ifdef CONFIG_ACPI
 /**

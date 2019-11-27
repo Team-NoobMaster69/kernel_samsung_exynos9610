@@ -338,7 +338,13 @@ struct ieee80211_regdomain *iwl_mvm_get_regdomain(struct wiphy *wiphy,
 	regd = iwl_parse_nvm_mcc_info(mvm->trans->dev, mvm->cfg,
 				      __le32_to_cpu(resp->n_channels),
 				      resp->channels,
+<<<<<<< HEAD
 				      __le16_to_cpu(resp->mcc));
+=======
+				      __le16_to_cpu(resp->mcc),
+				      __le16_to_cpu(resp->geo_info),
+				      __le16_to_cpu(resp->cap));
+>>>>>>> 2c00f819a721... iwlwifi: Don't ignore the cap field upon mcc update
 	/* Store the return source id */
 	src_id = resp->source_id;
 	kfree(resp);
