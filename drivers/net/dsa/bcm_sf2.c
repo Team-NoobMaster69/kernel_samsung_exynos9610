@@ -140,23 +140,27 @@ static void bcm_sf2_imp_setup(struct dsa_switch *ds, int port)
 
 	bcm_sf2_brcm_hdr_setup(priv, port);
 
-	/* Force link status for IMP port */
-	reg = core_readl(priv, offset);
-	reg |= (MII_SW_OR | LINK_STS);
-	core_writel(priv, reg, offset);
-}
+	if (port == 8) {
+		if (priv->type == BCM7445_DEVICE_ID)
+			offset = CORE_STS_OVERRIDE_IMP;
+		else
+			offset = CORE_STS_OVERRIDE_IMP2;
 
-static void bcm_sf2_eee_enable_set(struct dsa_switch *ds, int port, bool enable)
-{
-	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
-	u32 reg;
+		/* Force link status for IMP port */
+		reg = core_readl(priv, offset);
+		reg |= (MII_SW_OR | LINK_STS | GMII_SPEED_UP_2G);
+		core_writel(priv, reg, offset);
 
-	reg = core_readl(priv, CORE_EEE_EN_CTRL);
-	if (enable)
-		reg |= 1 << port;
-	else
-		reg &= ~(1 << port);
-	core_writel(priv, reg, CORE_EEE_EN_CTRL);
+		/* Enable Broadcast, Multicast, Unicast forwarding to IMP port */
+		reg = core_readl(priv, CORE_IMP_CTL);
+		reg |= (RX_BCST_EN | RX_MCST_EN | RX_UCST_EN);
+		reg &= ~(RX_DIS | TX_DIS);
+		core_writel(priv, reg, CORE_IMP_CTL);
+	} else {
+		reg = core_readl(priv, CORE_G_PCTL_PORT(port));
+		reg &= ~(RX_DIS | TX_DIS);
+		core_writel(priv, reg, CORE_G_PCTL_PORT(port));
+	}
 }
 
 static void bcm_sf2_gphy_enable_set(struct dsa_switch *ds, bool enable)
