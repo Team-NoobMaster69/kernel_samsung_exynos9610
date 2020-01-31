@@ -1678,27 +1678,18 @@ static int do_pages_move(struct mm_struct *mm, nodemask_t task_nodes,
 
 			pm[j].node = node;
 		}
-
-		/* End marker for this chunk */
-		pm[chunk_nr_pages].node = MAX_NUMNODES;
-
-		/* Migrate this chunk */
-		err = do_move_page_to_node_array(mm, pm,
-						 flags & MPOL_MF_MOVE_ALL);
-		if (err < 0)
-			goto out_pm;
-
-		/* Return status information */
-		for (j = 0; j < chunk_nr_pages; j++)
-			if (put_user(pm[j].status, status + j + chunk_start)) {
-				err = -EFAULT;
-				goto out_pm;
-			}
+		current_node = NUMA_NO_NODE;
 	}
-	err = 0;
+out_flush:
+	if (list_empty(&pagelist))
+		return err;
 
-out_pm:
-	free_page((unsigned long)pm);
+	/* Make sure we do not overwrite the existing error */
+	err1 = do_move_pages_to_node(mm, &pagelist, current_node);
+	if (!err1)
+		err1 = store_status(status, start, current_node, i - start);
+	if (err >= 0)
+		err = err1;
 out:
 	return err;
 }
